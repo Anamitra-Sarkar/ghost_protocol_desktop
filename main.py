@@ -55,6 +55,7 @@ class GhostProtocolVault:
         # Encrypted data storage (RAM only)
         self._encrypted_data: bytes = b""
         self._iv: bytes = b""
+        self._tag: bytes = b""  # GCM authentication tag
         
         # Flag to indicate if vault has been nuked
         self._nuked = False
@@ -73,15 +74,15 @@ class GhostProtocolVault:
             return
         
         try:
-            # Generate random IV for each encryption
-            self._iv = get_random_bytes(16)
+            # Generate random IV/nonce for each encryption
+            self._iv = get_random_bytes(12)  # 12 bytes (96 bits) is recommended for GCM
             
             # Create cipher
             cipher = AES.new(self._key, AES.MODE_GCM, nonce=self._iv)
             
-            # Encrypt data
+            # Encrypt data and get authentication tag
             plaintext_bytes = plaintext.encode('utf-8')
-            self._encrypted_data, _ = cipher.encrypt_and_digest(plaintext_bytes)
+            self._encrypted_data, self._tag = cipher.encrypt_and_digest(plaintext_bytes)
             
         except Exception as e:
             print(f"[VAULT ERROR] Encryption failed: {e}")
@@ -93,15 +94,15 @@ class GhostProtocolVault:
         Returns:
             The decrypted plaintext
         """
-        if self._nuked or not self._encrypted_data:
+        if self._nuked or not self._encrypted_data or not self._tag:
             return ""
         
         try:
             # Create cipher with stored IV
             cipher = AES.new(self._key, AES.MODE_GCM, nonce=self._iv)
             
-            # Decrypt data
-            plaintext_bytes = cipher.decrypt(self._encrypted_data)
+            # Decrypt and verify authentication tag
+            plaintext_bytes = cipher.decrypt_and_verify(self._encrypted_data, self._tag)
             return plaintext_bytes.decode('utf-8')
             
         except Exception as e:
@@ -135,10 +136,16 @@ class GhostProtocolVault:
             self._encrypted_data = b""
             
             # Overwrite IV
-            iv_len = len(self._iv) if self._iv else 16
+            iv_len = len(self._iv) if self._iv else 12
             for _ in range(3):
                 self._iv = os.urandom(iv_len)
             self._iv = b""
+            
+            # Overwrite tag
+            tag_len = len(self._tag) if self._tag else 16
+            for _ in range(3):
+                self._tag = os.urandom(tag_len)
+            self._tag = b""
             
             self._nuked = True
             print("[VAULT] Memory wipe complete. All traces eliminated.")

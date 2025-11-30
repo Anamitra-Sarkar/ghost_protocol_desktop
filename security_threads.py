@@ -241,13 +241,17 @@ class USBGuard(SecurityMonitor):
                     # Check /media and /mnt directories for GHOST_KEY
                     for base_dir in ["/media", "/mnt", "/run/media"]:
                         if os.path.exists(base_dir):
-                            for user_dir in os.listdir(base_dir):
-                                key_path = os.path.join(base_dir, user_dir, cls.REQUIRED_USB_NAME)
-                                if os.path.exists(key_path) and os.path.isdir(key_path):
-                                    return True
-                                # Also check direct mount
-                                if user_dir == cls.REQUIRED_USB_NAME:
-                                    return True
+                            try:
+                                for user_dir in os.listdir(base_dir):
+                                    key_path = os.path.join(base_dir, user_dir, cls.REQUIRED_USB_NAME)
+                                    if os.path.exists(key_path) and os.path.isdir(key_path):
+                                        return True
+                                    # Also check direct mount
+                                    if user_dir == cls.REQUIRED_USB_NAME:
+                                        return True
+                            except PermissionError:
+                                # Skip directories we don't have permission to read
+                                continue
             
             return False
             
