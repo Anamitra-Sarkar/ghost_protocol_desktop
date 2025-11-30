@@ -196,6 +196,7 @@ class USBGuard(SecurityMonitor):
         super().__init__(panic_callback, status_callback)
         self._usb_present = False
         self._bypass_mode = False
+        self._bypass_lock = threading.Lock()
     
     @classmethod
     def check_ghost_key_present(cls) -> bool:
@@ -265,14 +266,20 @@ class USBGuard(SecurityMonitor):
         
         Args:
             bypass: If True, USB requirement is bypassed
+        
+        Note: This should be called before starting the monitor thread.
         """
-        self._bypass_mode = bypass
+        with self._bypass_lock:
+            self._bypass_mode = bypass
         if bypass:
             print("[WARNING] USB Guard BYPASS MODE enabled - INSECURE")
     
     def _monitor_loop(self) -> None:
         """Main monitoring loop for USB presence."""
-        if self._bypass_mode:
+        with self._bypass_lock:
+            bypass_mode = self._bypass_mode
+        
+        if bypass_mode:
             self.status_callback("usb", "BYPASSED")
             print("[WARNING] USB Guard running in BYPASS mode")
             while self._running:
