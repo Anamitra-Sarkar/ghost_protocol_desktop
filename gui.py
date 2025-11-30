@@ -43,6 +43,9 @@ class StatusPanel(ctk.CTkFrame):
             border_color=Colors.NEON_GREEN_DARK
         )
         
+        # Status indicators dictionary for easy updates (must be initialized first)
+        self._status_labels = {}
+        
         # Title
         self.title_label = ctk.CTkLabel(
             self,
@@ -71,9 +74,6 @@ class StatusPanel(ctk.CTkFrame):
         # Threat Level
         self.threat_frame = self._create_status_row("THREAT:", "LOW")
         self.threat_frame.pack(fill="x", padx=10, pady=10)
-        
-        # Status indicators dictionary for easy updates
-        self._status_labels = {}
     
     def _create_status_row(self, label_text: str, value_text: str) -> ctk.CTkFrame:
         """Create a status row with label and value."""
